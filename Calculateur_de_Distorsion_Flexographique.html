@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlexoCalc Pro - Calcul de Distorsion & Clichés Flexo</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+              800: '#115e59',
+              900: '#134e4a',
+            },
+            tech: {
+              850: '#161e2e',
+              900: '#0f172a',
+              950: '#020617'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .font-mono-num {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+      border-radius: 9999px;
+    }
+    .pulse-glow {
+      box-shadow: 0 0 25px -5px rgba(20, 184, 166, 0.35);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased flex flex-col justify-between selection:bg-teal-500 selection:text-white">
+
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50 px-4 lg:px-8 py-3.5 transition-colors">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-900/40 text-slate-950">
+          <svg class="w-6 h-6 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2.2">
+            <circle cx="12" cy="12" r="9"></circle>
+            <circle cx="12" cy="12" r="5" stroke-dasharray="3 3"></circle>
+            <path d="M12 3v4M12 17v4M3 12h4M17 12h4"></path>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-1.5">
+              FlexoCalc <span class="text-xs px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-semibold border border-teal-500/30">PRO</span>
+            </h1>
+          </div>
+          <p class="text-xs text-slate-400">Calculateur de Distorsion & Tour Complet</p>
+        </div>
+      </div>
+
+      <!-- Quick Actions and Unit Toggle -->
+      <div class="flex items-center gap-2 sm:gap-4">
+        <div class="inline-flex rounded-lg p-1 bg-slate-800 border border-slate-700 text-xs font-semibold">
+          <button id="unitBtnMm" onclick="setUnit('mm')" class="px-2.5 py-1 rounded-md transition-all bg-teal-500 text-slate-950 shadow-sm">
+            mm
+          </button>
+          <button id="unitBtnCm" onclick="setUnit('cm')" class="px-2.5 py-1 rounded-md transition-all text-slate-300 hover:text-white">
+            cm
+          </button>
+        </div>
+
+        <button onclick="toggleTheme()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700" title="Basculer thème">
+          <svg id="themeIcon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 lg:px-8 py-6 w-full flex-1">
+
+    <!-- Top Alert / Current Preset Badge -->
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-xs sm:text-sm text-slate-300 shadow-sm">
+      <div class="flex items-center gap-2">
+        <span class="flex h-2.5 w-2.5 rounded-full bg-teal-400 animate-pulse"></span>
+        <span>Cas configuré : <strong>Développement <span id="summaryDev">40 cm (400 mm)</span></strong> | Cliché <strong><span id="summaryTc">2.54 mm</span></strong> | Adhésif <strong><span id="summaryTa">0.20 mm</span></strong></span>
+      </div>
+      <button onclick="resetDefaults()" class="text-teal-400 hover:text-teal-300 hover:underline flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Réinitialiser
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <section class="lg:col-span-5 space-y-6">
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 shadow-xl space-y-6">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <svg class="w-5 h-5 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Paramètres d'Entrée
+            </h2>
+            <span class="text-xs text-slate-400">Temps réel</span>
+          </div>
+
+          <!-- Quick plate standard thicknesses -->
+          <div>
+            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+              Épaisseurs Clichés Standards (Tc)
+            </label>
+            <div class="grid grid-cols-4 gap-2">
+              <button type="button" onclick="setPresetTc(1.14, 0.125)" class="preset-btn px-2 py-2 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 hover:border-teal-500 hover:text-teal-300 transition text-center">
+                1.14 mm
+              </button>
+              <button type="button" onclick="setPresetTc(1.70, 0.125)" class="preset-btn px-2 py-2 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 hover:border-teal-500 hover:text-teal-300 transition text-center">
+                1.70 mm
+              </button>
+              <button type="button" onclick="setPresetTc(2.54, 0.175)" class="preset-btn active-preset px-2 py-2 text-xs font-semibold rounded-lg bg-teal-500/20 border border-teal-500 text-teal-300 transition text-center">
+                2.54 mm
+              </button>
+              <button type="button" onclick="setPresetTc(2.84, 0.175)" class="preset-btn px-2 py-2 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 hover:border-teal-500 hover:text-teal-300 transition text-center">
+                2.84 mm
+              </button>
+            </div>
+          </div>
+
+          <!-- Form Fields -->
+          <div class="space-y-4">
+            
+            <!-- Développeur cylindre -->
+            <div>
+              <div class="flex justify-between items-center mb-1.5">
+                <label for="devInput" class="text-sm font-semibold text-slate-200">
+                  Développement cylindre nominal (D)
+                </label>
+                <span class="text-xs text-teal-400 font-mono" id="devEquiv">40.00 cm</span>
+              </div>
+              <div class="relative rounded-xl shadow-sm">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="10"
+                  id="devInput"
+                  value="400"
+                  oninput="calculate()"
+                  class="block w-full rounded-xl bg-slate-950 border border-slate-700 px-4 py-3 text-slate-100 placeholder-slate-500 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 font-mono-num text-lg"
+                />
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                  <span class="text-slate-400 font-medium text-sm" id="devUnitLabel">mm</span>
+                </div>
+              </div>
+              <p class="text-xs text-slate-400 mt-1">Tour complet d'impression théorique désiré (circonférence primitive)</p>
+            </div>
+
+            <!-- Épaisseur Cliché -->
+            <div>
+              <div class="flex justify-between items-center mb-1.5">
+                <label for="tcInput" class="text-sm font-semibold text-slate-200">
+                  Épaisseur totale du cliché (Tc)
+                </label>
+                <span class="text-xs text-slate-400">ex: 1.14, 1.70, 2.54...</span>
+              </div>
+              <div class="relative rounded-xl shadow-sm">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.1"
+                  id="tcInput"
+                  value="2.54"
+                  oninput="calculate()"
+                  class="block w-full rounded-xl bg-slate-950 border border-slate-700 px-4 py-3 text-slate-100 placeholder-slate-500 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 font-mono-num text-lg"
+                />
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                  <span class="text-slate-400 font-medium text-sm">mm</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Épaisseur Adhésif -->
+            <div>
+              <div class="flex justify-between items-center mb-1.5">
+                <label for="taInput" class="text-sm font-semibold text-slate-200">
+                  Épaisseur mousse adhésive (Ta)
+                </label>
+                <span class="text-xs text-slate-400">Standard: 0.20 - 0.38 - 0.50</span>
+              </div>
+              <div class="relative rounded-xl shadow-sm">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  id="taInput"
+                  value="0.20"
+                  oninput="calculate()"
+                  class="block w-full rounded-xl bg-slate-950 border border-slate-700 px-4 py-3 text-slate-100 placeholder-slate-500 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 font-mono-num text-lg"
+                />
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                  <span class="text-slate-400 font-medium text-sm">mm</span>
+                </div>
+              </div>
+              <!-- Presets adhésif -->
+              <div class="flex gap-2 mt-2">
+                <button type="button" onclick="setTa(0.20)" class="text-xs px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">0.20 mm</button>
+                <button type="button" onclick="setTa(0.38)" class="text-xs px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">0.38 mm</button>
+                <button type="button" onclick="setTa(0.50)" class="text-xs px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">0.50 mm</button>
+              </div>
+            </div>
+
+            <!-- Support polyester Tb -->
+            <div class="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800/80">
+              <div class="flex justify-between items-center mb-1.5">
+                <label for="tbInput" class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <span>Support PET / Axe neutre (Tb)</span>
+                  <span class="text-[10px] text-teal-400 bg-teal-950/70 border border-teal-800 px-1.5 py-0.5 rounded">Sensible</span>
+                </label>
+              </div>
+              <div class="grid grid-cols-2 gap-2 items-center">
+                <input
+                  type="number"
+                  step="0.005"
+                  min="0.05"
+                  id="tbInput"
+                  value="0.175"
+                  oninput="calculate()"
+                  class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-slate-100 placeholder-slate-500 focus:border-teal-500 font-mono-num text-sm"
+                />
+                <div class="flex gap-1">
+                  <button type="button" onclick="setTb(0.125)" class="flex-1 text-[11px] py-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-center">0.125</button>
+                  <button type="button" onclick="setTb(0.175)" class="flex-1 text-[11px] py-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-center font-bold text-teal-400">0.175</button>
+                  <button type="button" onclick="setTb(0.250)" class="flex-1 text-[11px] py-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-center">0.250</button>
+                </div>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1.5">
+                0.125 mm pour plaques fines (≤ 1.70 mm) • 0.175 mm pour plaques épaisses (2.54, 2.84 mm).
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="bg-slate-900/60 rounded-2xl border border-slate-800/80 p-5 text-xs text-slate-400 space-y-2">
+          <h3 class="font-bold text-slate-300 flex items-center gap-1.5 text-xs uppercase tracking-wider">
+            <svg class="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Formules normalisées employées
+          </h3>
+          <p class="font-mono text-slate-300 bg-slate-950 p-2.5 rounded-lg border border-slate-800 leading-relaxed">
+            • Constante K = 2 × π × (Tc - Tb)<br>
+            • Longueur à plat = D - K<br>
+            • Ratio Illustrator / RIP = ((D - K) / D) × 100%<br>
+            • Découpe base adhésif = π × [ D/π - 2×Tc ]
+          </p>
+        </div>
+      </section>
+
+      <section class="lg:col-span-7 space-y-6">
+
+        <!-- Top Major Results Banner -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          
+          <!-- RIP / Illustrator Distortion Card -->
+          <div class="bg-gradient-to-br from-teal-950/60 to-slate-900 border-2 border-teal-500/60 rounded-2xl p-5 shadow-xl pulse-glow relative overflow-hidden">
+            <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-teal-500/10 rounded-full blur-xl pointer-events-none"></div>
+            <div class="flex items-center justify-between text-xs font-semibold text-teal-300 uppercase tracking-wider mb-1">
+              <span>Échelle Illustrator / RIP</span>
+              <span class="px-2 py-0.5 rounded-full bg-teal-400/20 text-teal-300 font-bold border border-teal-400/30">Sens Défilement</span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+              <span id="resPercent" class="text-4xl sm:text-5xl font-extrabold text-white font-mono-num tracking-tight">96.29</span>
+              <span class="text-2xl font-bold text-teal-400">%</span>
+            </div>
+            <div class="mt-3 flex items-center justify-between text-xs border-t border-teal-500/20 pt-2 text-slate-300">
+              <span>Réduction appliquée :</span>
+              <span id="resDistortionReduction" class="font-mono font-bold text-teal-300">-3.71 %</span>
+            </div>
+            <div class="mt-2 text-[11px] text-slate-400">
+              Appliquer cette valeur uniquement sur l'axe longitudinal (hauteur/développement), laisser la laize à <strong>100%</strong>.
+            </div>
+          </div>
+
+          <!-- Gravure Motif Card -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
+            <div class="flex items-center justify-between text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+              <span>Longueur Motif Gravé (à plat)</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">D - K</span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+              <span id="resGraphicLength" class="text-4xl sm:text-5xl font-extrabold text-emerald-400 font-mono-num tracking-tight">385.14</span>
+              <span class="text-xl font-bold text-slate-400">mm</span>
+            </div>
+            <div class="mt-3 flex items-center justify-between text-xs border-t border-slate-800 pt-2 text-slate-300">
+              <span>Constante K calculée :</span>
+              <span id="resKValue" class="font-mono font-bold text-amber-400">14.86 mm</span>
+            </div>
+            <div class="mt-2 text-[11px] text-slate-400">
+              Taille exacte du visuel étalé sur la table de montage ou insolateur CTP.
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Cutting & Cylinder Dimensions Detail Table -->
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <svg class="w-5 h-5 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Dimensions Mécaniques & Découpe du Cliché
+            </h3>
+            <button onclick="copyResults()" class="text-xs bg-slate-800 hover:bg-slate-700 text-teal-300 px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              <span id="copyBtnText">Copier le rapport</span>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            
+            <!-- Découpe Cliché -->
+            <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold uppercase tracking-wider text-teal-400">Longueur de découpe du polymère</span>
+                  <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">Base film PET</span>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                  <span id="resCutLength" class="text-2xl sm:text-3xl font-bold font-mono-num text-white">384.03</span>
+                  <span class="text-sm font-semibold text-slate-400">mm</span>
+                </div>
+                <div id="resCutLengthCm" class="text-xs text-slate-400 mt-0.5 font-mono">soit 38.40 cm</div>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-800/80">
+                Circonférence au dos du cliché une fois posé sur l'adhésif. Pour faire joindre les 2 bords parfaitement sans interstice.
+              </p>
+            </div>
+
+            <!-- Diamètre primitif -->
+            <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+              <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Diamètre primitif d'impression</span>
+                <div class="mt-2 flex items-baseline gap-2">
+                  <span id="resPitchDia" class="text-2xl sm:text-3xl font-bold font-mono-num text-white">127.32</span>
+                  <span class="text-sm font-semibold text-slate-400">mm</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-0.5 font-mono">D / π</div>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-800/80">
+                Ligne de contact d'impression parfaite au sommet du relief avec le substrat.
+              </p>
+            </div>
+
+            <!-- Diamètre cylindre nu -->
+            <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+              <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Diamètre cylindre porte-cliché (nu)</span>
+                <div class="mt-2 flex items-baseline gap-2">
+                  <span id="resBareCylinderDia" class="text-2xl sm:text-3xl font-bold font-mono-num text-white">121.84</span>
+                  <span class="text-sm font-semibold text-slate-400">mm</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-0.5 font-mono">D_primitif - 2×(Tc + Ta)</div>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-800/80">
+                Diamètre mécanique usiné du cylindre porte-cliché ou du manchon (sleeve) nu.
+              </p>
+            </div>
+
+            <!-- Diamètre avec adhésif -->
+            <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+              <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Diamètre cylindre + Adhésif</span>
+                <div class="mt-2 flex items-baseline gap-2">
+                  <span id="resWithTapeDia" class="text-2xl sm:text-3xl font-bold font-mono-num text-white">122.24</span>
+                  <span class="text-sm font-semibold text-slate-400">mm</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-0.5 font-mono">D_nu + 2×Ta</div>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-800/80">
+                Diamètre extérieur effectif avant la pose du photopolymère.
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 shadow-xl space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <svg class="w-5 h-5 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              Schéma en Coupe : Couches & Allongement
+            </h3>
+            <span class="text-xs text-slate-400">Rayons relatifs</span>
+          </div>
+
+          <!-- SVG Visual Representation -->
+          <div class="w-full flex flex-col md:flex-row items-center gap-6 bg-slate-950 p-4 rounded-xl border border-slate-800/70">
+            <div class="w-full md:w-1/2 flex justify-center">
+              <svg viewBox="0 0 360 220" class="w-full max-w-[320px] h-auto select-none">
+                <defs>
+                  <linearGradient id="metalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#334155" />
+                    <stop offset="100%" stop-color="#1e293b" />
+                  </linearGradient>
+                  <linearGradient id="polyGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#0d9488" />
+                    <stop offset="100%" stop-color="#14b8a6" />
+                  </linearGradient>
+                </defs>
+
+                <!-- Cylindre nu (Gros arc) -->
+                <path d="M 30,190 A 180,180 0 0,1 330,190 L 330,210 L 30,210 Z" fill="url(#metalGrad)" stroke="#475569" stroke-width="1.5" />
+                <text x="180" y="202" fill="#94a3b8" font-size="10" font-weight="600" text-anchor="middle">Cylindre nu (Ø <tspan id="svgBareDia">121.8</tspan>)</text>
+
+                <!-- Adhésif (Arc orange) -->
+                <path d="M 30,165 A 185,185 0 0,1 330,165 L 330,189 A 180,180 0 0,0 30,189 Z" fill="#f59e0b" fill-opacity="0.85" stroke="#d97706" stroke-width="1" />
+                <text x="180" y="179" fill="#020617" font-size="9" font-weight="700" text-anchor="middle">Adhésif Ta (<span id="svgTa">0.20</span> mm)</text>
+
+                <!-- Film support polyester PET (ligne neutre rigide) -->
+                <path d="M 30,158 A 187,187 0 0,1 330,158 L 330,164 A 185,185 0 0,0 30,164 Z" fill="#38bdf8" stroke="#0284c7" stroke-width="1" />
+                <!-- Ligne neutre d'allongement en pointillés -->
+                <path d="M 30,160 A 186.5,186.5 0 0,1 330,160" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="3,3" />
+
+                <!-- Relief Photopolymère (Arc vert / turquoise) -->
+                <path d="M 30,115 A 200,200 0 0,1 330,115 L 330,157 A 187,187 0 0,0 30,157 Z" fill="url(#polyGrad)" stroke="#0f766e" stroke-width="1.5" />
+                <text x="180" y="142" fill="#ffffff" font-size="10" font-weight="700" text-anchor="middle">Cliché Photopolymère Tc (<span id="svgTc">2.54</span> mm)</text>
+
+                <!-- Flèche d'étirement en surface -->
+                <path d="M 80,105 Q 180,90 280,105" fill="none" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow)" />
+                <text x="180" y="85" fill="#f87171" font-size="10" font-weight="700" text-anchor="middle">▲ SURFACE ÉTIRÉE (+Allongement K)</text>
+
+                <!-- Pointillé Ligne d'impression nominale -->
+                <path d="M 30,115 A 200,200 0 0,1 330,115" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,4" />
+                <text x="335" y="117" fill="#4ade80" font-size="9" text-anchor="start">Développement (D = 400 mm)</text>
+              </svg>
+            </div>
+
+            <!-- Legend & Explanations -->
+            <div class="w-full md:w-1/2 space-y-2.5 text-xs">
+              <div class="flex items-start gap-2">
+                <span class="w-3.5 h-3.5 rounded bg-red-500 mt-0.5 flex-shrink-0"></span>
+                <div>
+                  <strong class="text-slate-200">Zone d'étirement (Relief) :</strong>
+                  <p class="text-slate-400">Lors de la courbure sur le cylindre, la face extérieure s'allonge de la valeur K.</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="w-3.5 h-3.5 rounded bg-sky-400 mt-0.5 flex-shrink-0"></span>
+                <div>
+                  <strong class="text-slate-200">Axe Neutre (Support PET Tb) :</strong>
+                  <p class="text-slate-400">Le support polyester ne s'étire pas sous tension : c'est la référence dimensionnelle du calcul K.</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="w-3.5 h-3.5 rounded bg-amber-400 mt-0.5 flex-shrink-0"></span>
+                <div>
+                  <strong class="text-slate-200">Mousse Adhésive (Ta) :</strong>
+                  <p class="text-slate-400">Modifie le diamètre d'assise du cliché sans influencer la constante d'élongation intrinsèque K.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 shadow-xl space-y-3">
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <svg class="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            Recommandations Atelier pour "Tour Complet"
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+            <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+              <strong class="text-teal-300 block mb-1 text-sm">1. Coupe en Biseau ou Épissure à 45°</strong>
+              Pour un tour complet continu (fonds perdus, aplats), ne coupez pas le joint de jonction à 90° perpendiculaire. Une coupe à 45° ou en ligne ondulée évite le battement du docteur blade (chambre à racle) et empêche une ligne de démarcation visible.
+            </div>
+            <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+              <strong class="text-teal-300 block mb-1 text-sm">2. Préparation du Fichier Graphique</strong>
+              Dans le RIP / Illustrator :
+              <ul class="list-disc list-inside mt-1 space-y-0.5 text-slate-400">
+                <li>Axe X (Laize / Transversal) : <strong>100.00 %</strong></li>
+                <li>Axe Y (Développement / Longitudinal) : <strong class="text-teal-300" id="adviceScale">96.29 %</strong></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="border-t border-slate-800 bg-slate-950/80 px-4 py-4 text-center text-xs text-slate-400 mt-8">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div>
+        <strong>FlexoCalc Pro</strong> — Outil de calcul conforme aux pratiques d'impression flexographique et photopolymères.
+      </div>
+      <div>
+        Formule : K = 2 × π × (T<sub>c</sub> - T<sub>b</sub>)
+      </div>
+    </div>
+  </footer>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-teal-600 text-white px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-2">
+    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+    <span id="toastMsg">Rapport copié dans le presse-papier !</span>
+  </div>
+
+  <script>
+    // State management
+    let currentUnit = 'mm'; // 'mm' or 'cm'
+
+    function setUnit(unit) {
+      if (currentUnit === unit) return;
+      const devInput = document.getElementById('devInput');
+      let val = parseFloat(devInput.value);
+
+      if (unit === 'cm') {
+        devInput.value = (val / 10).toFixed(2);
+        document.getElementById('devUnitLabel').innerText = 'cm';
+        document.getElementById('unitBtnCm').classList.add('bg-teal-500', 'text-slate-950', 'shadow-sm');
+        document.getElementById('unitBtnCm').classList.remove('text-slate-300');
+        document.getElementById('unitBtnMm').classList.remove('bg-teal-500', 'text-slate-950', 'shadow-sm');
+        document.getElementById('unitBtnMm').classList.add('text-slate-300');
+      } else {
+        devInput.value = (val * 10).toFixed(2);
+        document.getElementById('devUnitLabel').innerText = 'mm';
+        document.getElementById('unitBtnMm').classList.add('bg-teal-500', 'text-slate-950', 'shadow-sm');
+        document.getElementById('unitBtnMm').classList.remove('text-slate-300');
+        document.getElementById('unitBtnCm').classList.remove('bg-teal-500', 'text-slate-950', 'shadow-sm');
+        document.getElementById('unitBtnCm').classList.add('text-slate-300');
+      }
+
+      currentUnit = unit;
+      calculate();
+    }
+
+    function setPresetTc(tc, tb) {
+      document.getElementById('tcInput').value = tc;
+      if (tb !== undefined) {
+        document.getElementById('tbInput').value = tb;
+      }
+      
+      // Update buttons style
+      const buttons = document.querySelectorAll('.preset-btn');
+      buttons.forEach(btn => {
+        if (btn.innerText.includes(tc.toString())) {
+          btn.classList.add('active-preset', 'bg-teal-500/20', 'border-teal-500', 'text-teal-300');
+          btn.classList.remove('bg-slate-800', 'border-slate-700');
+        } else {
+          btn.classList.remove('active-preset', 'bg-teal-500/20', 'border-teal-500', 'text-teal-300');
+          btn.classList.add('bg-slate-800', 'border-slate-700');
+        }
+      });
+
+      calculate();
+    }
+
+    function setTa(ta) {
+      document.getElementById('taInput').value = ta;
+      calculate();
+    }
+
+    function setTb(tb) {
+      document.getElementById('tbInput').value = tb;
+      calculate();
+    }
+
+    function resetDefaults() {
+      currentUnit = 'mm';
+      document.getElementById('devUnitLabel').innerText = 'mm';
+      document.getElementById('unitBtnMm').classList.add('bg-teal-500', 'text-slate-950', 'shadow-sm');
+      document.getElementById('unitBtnMm').classList.remove('text-slate-300');
+      document.getElementById('unitBtnCm').classList.remove('bg-teal-500', 'text-slate-950', 'shadow-sm');
+      document.getElementById('unitBtnCm').classList.add('text-slate-300');
+
+      document.getElementById('devInput').value = '400';
+      setPresetTc(2.54, 0.175);
+      document.getElementById('taInput').value = '0.20';
+      calculate();
+    }
+
+    function calculate() {
+      let rawDev = parseFloat(document.getElementById('devInput').value) || 0;
+      let devMm = currentUnit === 'cm' ? rawDev * 10 : rawDev;
+      let tc = parseFloat(document.getElementById('tcInput').value) || 0;
+      let ta = parseFloat(document.getElementById('taInput').value) || 0;
+      let tb = parseFloat(document.getElementById('tbInput').value) || 0;
+
+      // Update equivalent display
+      if (currentUnit === 'mm') {
+        document.getElementById('devEquiv').innerText = (devMm / 10).toFixed(2) + ' cm';
+      } else {
+        document.getElementById('devEquiv').innerText = devMm.toFixed(2) + ' mm';
+      }
+
+      // Constante d'allongement K = 2 * PI * (Tc - Tb)
+      let effectiveThickness = Math.max(0, tc - tb);
+      let k = 2 * Math.PI * effectiveThickness;
+
+      // Longueur du motif gravé à plat
+      let graphicLength = devMm - k;
+
+      // Pourcentage d'échelle (Distorsion)
+      let scalePercent = devMm > 0 ? (graphicLength / devMm) * 100 : 0;
+      let reductionPercent = 100 - scalePercent;
+
+      // Diamètres
+      let pitchDia = devMm > 0 ? devMm / Math.PI : 0; // Diamètre primitif
+      let bareDia = pitchDia - 2 * (tc + ta); // Cylindre nu
+      let withTapeDia = bareDia + 2 * ta; // Diamètre avec adhésif
+
+      // Découpe physique du photopolymère pour tour complet
+      let cutLength = Math.PI * withTapeDia;
+
+      // Updating UI
+      document.getElementById('resPercent').innerText = scalePercent.toFixed(2);
+      document.getElementById('resDistortionReduction').innerText = '-' + reductionPercent.toFixed(2) + ' %';
+      document.getElementById('adviceScale').innerText = scalePercent.toFixed(2) + ' %';
+
+      document.getElementById('resGraphicLength').innerText = graphicLength.toFixed(2);
+      document.getElementById('resKValue').innerText = k.toFixed(2) + ' mm';
+
+      document.getElementById('resCutLength').innerText = cutLength.toFixed(2);
+      document.getElementById('resCutLengthCm').innerText = 'soit ' + (cutLength / 10).toFixed(2) + ' cm';
+
+      document.getElementById('resPitchDia').innerText = pitchDia.toFixed(2);
+      document.getElementById('resBareCylinderDia').innerText = Math.max(0, bareDia).toFixed(2);
+      document.getElementById('resWithTapeDia').innerText = Math.max(0, withTapeDia).toFixed(2);
+
+      // Top summary badge
+      document.getElementById('summaryDev').innerText = (devMm / 10).toFixed(1) + ' cm (' + devMm.toFixed(0) + ' mm)';
+      document.getElementById('summaryTc').innerText = tc.toFixed(2) + ' mm';
+      document.getElementById('summaryTa').innerText = ta.toFixed(2) + ' mm';
+
+      // SVG dynamic labels
+      document.getElementById('svgBareDia').innerText = Math.max(0, bareDia).toFixed(1);
+      document.getElementById('svgTa').innerText = ta.toFixed(2);
+      document.getElementById('svgTc').innerText = tc.toFixed(2);
+    }
+
+    function copyResults() {
+      const scale = document.getElementById('resPercent').innerText;
+      const graphicL = document.getElementById('resGraphicLength').innerText;
+      const cutL = document.getElementById('resCutLength').innerText;
+      const kVal = document.getElementById('resKValue').innerText;
+      const bare = document.getElementById('resBareCylinderDia').innerText;
+      const pitch = document.getElementById('resPitchDia').innerText;
+      
+      const textToCopy = 
+`--- RAPPORT DE DISTORSION FLEXOGRAPHIQUE ---
+• Développement nominal : ${document.getElementById('devInput').value} ${currentUnit}
+• Cliché Tc : ${document.getElementById('tcInput').value} mm | Film Tb : ${document.getElementById('tbInput').value} mm
+• Adhésif Ta : ${document.getElementById('taInput').value} mm
+--------------------------------------------
+• Constante d'élongation (K) : ${kVal}
+• Mise à l'échelle RIP / Illustrator (axe longitudinal) : ${scale} %
+• Longueur du visuel à plat : ${graphicL} mm
+• Longueur de coupe physique de la plaque : ${cutL} mm
+• Diamètre primitif théorique : ${pitch} mm
+• Diamètre cylindre nu usiné : ${bare} mm
+--------------------------------------------`;
+
+      // Copy using textarea fallback compatible with iframes
+      const tempTextArea = document.createElement("textarea");
+      tempTextArea.value = textToCopy;
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      try {
+        document.execCommand('copy');
+        showToast("Rapport technique copié !");
+      } catch (err) {
+        showToast("Impossible de copier automatiquement.");
+      }
+      document.body.removeChild(tempTextArea);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      toastMsg.innerText = msg;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 2500);
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        document.body.classList.remove('bg-slate-950', 'text-slate-100');
+        document.body.classList.add('bg-slate-50', 'text-slate-900');
+      } else {
+        html.classList.add('dark');
+        document.body.classList.remove('bg-slate-50', 'text-slate-900');
+        document.body.classList.add('bg-slate-950', 'text-slate-100');
+      }
+    }
+
+    // Run initial calculation on load
+    window.addEventListener('DOMContentLoaded', () => {
+      calculate();
+    });
+  </script>
+</body>
+</html>
